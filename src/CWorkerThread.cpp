@@ -2,9 +2,10 @@
 #include "misc.h"
 #include "CThreadPool.h"
 #include "CWorkerThread.h"
+#include "Cpp.h"
 
 
-CWorkerThread::CWorkerThread()
+CWorkerThread::CWorkerThread():CThreadA()
 {
     DBG_POOL("++++++++++++++++++++++++++++++++++++++++++\n");
     m_Job = NULL;
@@ -17,11 +18,13 @@ CWorkerThread::~CWorkerThread()
 {
     if (NULL != m_Job)
     {
-//        delete m_Job;
+        delete m_Job;
+        m_Job = NULL;
     }
     if (NULL != m_ThreadPool)
     {
-//        delete m_ThreadPool;
+        delete m_ThreadPool;
+        m_ThreadPool = NULL;
     }
 }
 void CWorkerThread::Run()
@@ -32,44 +35,44 @@ void CWorkerThread::Run()
         DBG_POOL("----------------------\n");
         while (m_Job == NULL)
         {
-            DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%u\n", GetThreadID(),
+            DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%s\n", GetThreadID(),
                                                                                                      m_ThreadPool->m_IdleList.size(),
                                                                                                      m_ThreadPool->m_BusyList.size(),
-                                                                                                     m_ThreadPool->m_ThreadList.size(), SystemGetMSCount());
+                                                                                                     m_ThreadPool->m_ThreadList.size(), GetSysTimeUs().c_str());
             m_JobCond.Wait(m_VarMutex);    //挂起等待任务到来
             Exit();
         }
-        DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%u\n", GetThreadID(),
+        DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%s\n", GetThreadID(),
                                                                                                      m_ThreadPool->m_IdleList.size(),
                                                                                                      m_ThreadPool->m_BusyList.size(),
-                                                                                                     m_ThreadPool->m_ThreadList.size(), SystemGetMSCount());
+                                                                                                     m_ThreadPool->m_ThreadList.size(), GetSysTimeUs().c_str());
         m_Job->Run(m_JobData);    //ִ执行实际的操作
-        DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%u\n", GetThreadID(),
+        DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%s\n", GetThreadID(),
                                                                                                      m_ThreadPool->m_IdleList.size(),
                                                                                                      m_ThreadPool->m_BusyList.size(),
-                                                                                                     m_ThreadPool->m_ThreadList.size(), SystemGetMSCount());
+                                                                                                     m_ThreadPool->m_ThreadList.size(), GetSysTimeUs().c_str());
         m_Job->SetWorkThread(NULL);
         m_Job = NULL;
         m_ThreadPool->MoveToIdleList(this);    //将工作线程添加到空闲队列
-        DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%u\n", GetThreadID(),
+        DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%s\n", GetThreadID(),
                                                                                                      m_ThreadPool->m_IdleList.size(),
                                                                                                      m_ThreadPool->m_BusyList.size(),
-                                                                                                     m_ThreadPool->m_ThreadList.size(), SystemGetMSCount());
+                                                                                                     m_ThreadPool->m_ThreadList.size(), GetSysTimeUs().c_str());
         //空闲线程数量大于当前线程池中所允许的空闲的线程的最大数目,说明负荷轻
         if ((int)m_ThreadPool->m_IdleList.size() > m_ThreadPool->GetAvailHighNum())
         {
-            DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%u\n", GetThreadID(),
+            DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%s\n", GetThreadID(),
                                                                                                      m_ThreadPool->m_IdleList.size(),
                                                                                                      m_ThreadPool->m_BusyList.size(),
-                                                                                                     m_ThreadPool->m_ThreadList.size(), SystemGetMSCount());
+                                                                                                     m_ThreadPool->m_ThreadList.size(), GetSysTimeUs().c_str());
                         //ֻ只保留初始创建时线程池中的线程的个数
             m_ThreadPool->DeleteIdleThread(m_ThreadPool->m_IdleList.size() -m_ThreadPool->GetInitNum());
         }
         m_WorkMutex.Leave();
-        DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%u\n", GetThreadID(),
+        DBG_POOL("----------------------id:%d,idle:%u,busy:%u,thread:%u,time:%s\n", GetThreadID(),
                                                                                                      m_ThreadPool->m_IdleList.size(),
                                                                                                      m_ThreadPool->m_BusyList.size(),
-                                                                                                     m_ThreadPool->m_ThreadList.size(), SystemGetMSCount());
+                                                                                                     m_ThreadPool->m_ThreadList.size(), GetSysTimeUs().c_str());
     }
 }
 void CWorkerThread::SetJob(CJob *job, void *jobdata)

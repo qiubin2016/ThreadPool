@@ -26,8 +26,6 @@ CThreadPool::CThreadPool()
     }
 }
 
-
-
 CThreadPool::CThreadPool(int initnum)
 {
     int Num = 0.2 * THREAD_MAX_NUM;
@@ -52,10 +50,6 @@ CThreadPool::CThreadPool(int initnum)
         m_InitNum = m_AvailNum = THREAD_INIT_NUM ;
         m_AvailHigh = THREAD_AVAIL_HIGH;
     }
-	m_MaxNum = 4;
-	m_aVailLow = 1;
-	m_InitNum = 2;
-	m_aVailHigh = 3;
 	DBG_POOL("max:%d,low:%d,init:%d,avalid:%d,high:%d\n", m_MaxNum,m_AvailLow,m_InitNum,m_AvailNum,m_AvailHigh);
     m_BusyList.clear();
     m_IdleList.clear();
@@ -75,16 +69,13 @@ CThreadPool::CThreadPool(int initnum)
 
 
 CThreadPool::~CThreadPool()
-
-{
+{DEBUG("----------------------------------------------\n");
     TerminateAll();
 }
 
-
-
 void CThreadPool::TerminateAll()
 {
-	DBG_POOL("thread_list_size:%d\n", m_ThreadList.size());
+	DBG_POOL("thread_list_size:%d,3\n", m_ThreadList.size());
     for (int i = 0; i < (int)m_ThreadList.size(); i++)
     {
         DBG_POOL("\n");
@@ -97,21 +88,20 @@ void CThreadPool::TerminateAll()
 }
 
 CWorkerThread *CThreadPool::GetIdleThread(void)
-
 {
     m_IdleMutex.Enter();
     while (m_IdleList.size() == 0 )
     { 
-        DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%u\n",
+        DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%s\n",
                                                                                                      m_IdleList.size(),
                                                                                                      m_BusyList.size(),
-                                                                                                     m_ThreadList.size(), SystemGetMSCount());
+                                                                                                     m_ThreadList.size(), GetSysTimeUs().c_str());
         m_IdleCond.Wait(m_IdleMutex);    //空闲线程列表为空,挂起等待。
     }
-    DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%u\n",
+    DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%s\n",
                                                                                                      m_IdleList.size(),
                                                                                                      m_BusyList.size(),
-                                                                                                     m_ThreadList.size(), SystemGetMSCount());
+                                                                                                     m_ThreadList.size(), GetSysTimeUs().c_str());
     //m_IdleMutex.Enter();
     if (m_IdleList.size() > 0 )
     {
@@ -125,12 +115,8 @@ CWorkerThread *CThreadPool::GetIdleThread(void)
     return NULL;
 }
 
-
-
 //add an idle thread to idle list
-
 void CThreadPool::AppendToIdleList(CWorkerThread *jobthread)
-
 {
     m_IdleMutex.Enter();
     m_IdleList.push_back(jobthread);
@@ -138,12 +124,8 @@ void CThreadPool::AppendToIdleList(CWorkerThread *jobthread)
     m_IdleMutex.Leave();
 }
 
-
-
 //move and idle thread to busy thread
-
 void CThreadPool::MoveToBusyList(CWorkerThread *idlethread)
-
 {
     m_BusyMutex.Enter();
     m_BusyList.push_back(idlethread);
@@ -157,10 +139,7 @@ void CThreadPool::MoveToBusyList(CWorkerThread *idlethread)
     m_IdleMutex.Leave();
 }
 
-
-
 void CThreadPool::MoveToIdleList(CWorkerThread *busythread)
-
 {
     m_IdleMutex.Enter();
     m_IdleList.push_back(busythread);
@@ -179,12 +158,8 @@ void CThreadPool::MoveToIdleList(CWorkerThread *busythread)
     m_MaxNumCond.Signal();
 }
 
-
-
 //create num idle thread and put them to idlelist
-
 void CThreadPool::CreateIdleThread(int num)
-
 {
     for (int i = 0; i < num; i++)
     {
@@ -198,10 +173,7 @@ void CThreadPool::CreateIdleThread(int num)
     }
 }
 
-
-
 void CThreadPool::DeleteIdleThread(int num)
-
 {
     DBG_POOL("++++++++++++++++++++++++++++++++++++++++++Enter into CThreadPool::DeleteIdleThread\n");
     m_IdleMutex.Enter();
@@ -264,24 +236,23 @@ else
 m_IdleCond.Signal()方法，唤醒GetIdleThread()中可能阻塞的线程。
 */
 void CThreadPool::Run(CJob *job, void *jobdata)
-
 {
     assert(job != NULL);
     //if the busy thread num adds to m_MaxNum,so we should wait
     m_BusyMutex.Enter();
     if (GetBusyNum() == (int)m_MaxNum)
     { 
-        DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%u\n",
+        DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%s\n",
                                                                                                      m_IdleList.size(),
                                                                                                      m_BusyList.size(),
-                                                                                                     m_ThreadList.size(), SystemGetMSCount());
+                                                                                                     m_ThreadList.size(), GetSysTimeUs().c_str());
         m_MaxNumCond.Wait(m_BusyMutex);    //当前线程数量达到最大且均忙碌,挂起等待
     }
     m_BusyMutex.Leave();
-    DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%u\n",
+    DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%s\n",
                                                                                                      m_IdleList.size(),
                                                                                                      m_BusyList.size(),
-                                                                                                     m_ThreadList.size(), SystemGetMSCount());
+                                                                                                     m_ThreadList.size(), GetSysTimeUs().c_str());
 
     CWorkerThread  *idlethr = GetIdleThread();
     if (idlethr != NULL)
@@ -289,21 +260,21 @@ void CThreadPool::Run(CJob *job, void *jobdata)
         idlethr->m_WorkMutex.Enter();
         MoveToBusyList(idlethr);
         idlethr->SetThreadPool(this);
-        job->SetWorkThread(idlethr);
+//        job->SetWorkThread(idlethr);
         DBG_POOL("++++++++++++++++++++++++++++++++++++++++++Job is set to thread %d \n", idlethr->GetThreadID());
         idlethr->SetJob(job, jobdata);
         if (m_IdleList.size() < m_AvailLow)    //空闲线程数低于最低限值
         {
             if (GetAllNum() + m_InitNum - m_IdleList.size() < m_MaxNum )
             {
-                DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%u,create:%u\n",
-                         m_IdleList.size(), m_BusyList.size(), m_ThreadList.size(), SystemGetMSCount(), m_InitNum - (unsigned int)m_IdleList.size());
+                DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%s,create:%u\n",
+                         m_IdleList.size(), m_BusyList.size(), m_ThreadList.size(), GetSysTimeUs().c_str(), m_InitNum - (unsigned int)m_IdleList.size());
                 CreateIdleThread(m_InitNum - m_IdleList.size());
             }
             else
             {
-                DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%u,create:%u\n",
-                         m_IdleList.size(), m_BusyList.size(), m_ThreadList.size(), SystemGetMSCount(), m_MaxNum - (unsigned int)GetAllNum());
+                DBG_POOL("++++++++++++++++++++++++++++++++++++++++++idle:%u,busy:%u,thread:%u,time:%s,create:%u\n",
+                         m_IdleList.size(), m_BusyList.size(), m_ThreadList.size(), GetSysTimeUs().c_str(), m_MaxNum - (unsigned int)GetAllNum());
                 CreateIdleThread(m_MaxNum - GetAllNum());
             }
         }
